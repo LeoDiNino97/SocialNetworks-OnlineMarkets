@@ -50,11 +50,16 @@ def training_loop(model, optimizer, data, epochs = 70, patience = 5):
     # Initialize variables to keep track of the best validation accuracy and test accuracy
     best_val_acc = 0
     test_acc = 0
+    train_loss = []
+    val_accs = []
 
     # Training loop
     for epoch in range(1, epochs + 1):
         loss = train(model, optimizer, data)  # Train the model
+        train_loss.append(loss)
+
         train_acc, val_acc, tmp_test_acc = test(model, data)  # Test the model
+        val_accs.append(val_acc)
 
         # Update the best validation accuracy and corresponding test accuracy
         if val_acc > best_val_acc:
@@ -78,4 +83,4 @@ def training_loop(model, optimizer, data, epochs = 70, patience = 5):
             print(f'Test accuracy at epoch {best_epoch}: {test_acc:.4f}')
             break
 
-    return test_acc
+    return train_loss, val_accs
