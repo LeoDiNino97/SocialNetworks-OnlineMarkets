@@ -75,7 +75,7 @@ def training_loop(model, optimizer, data, epochs = 70, patience = 5):
             early_stop_counter += 1  
 
         # Log training progress
-        log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Test=test_acc)
+        #log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Test=test_acc)
 
         # Check for early stopping
         if early_stop_counter >= patience:
@@ -83,4 +83,4 @@ def training_loop(model, optimizer, data, epochs = 70, patience = 5):
             print(f'Test accuracy at epoch {best_epoch}: {test_acc:.4f}')
             break
 
-    return train_loss, val_accs
+    return train_loss, val_accs, test_acc
