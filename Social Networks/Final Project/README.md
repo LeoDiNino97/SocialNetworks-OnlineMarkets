@@ -1,13 +1,5 @@
-# Social Networks & Online Markets
+# DeepTransport
+## Stateful DeepWalk-like embedding through graph cellular sheaves
 
-This repository contains the study material for the course *"Social networks and online markets"*, taught by prof. Anagnostopolous and prof. Leonardi in Sapienza M.Sc. in Data Science. 
-The first module of the course deals with advanced topics in network science, graph representation learning and graph machine learning. 
-The second module deals with algorithmic game theory and mechanism design for non cooperative games. 
-
-### Bibliography
-
-[1] Network Science, Albert-László Barabási, Cambridge University Press, 2016
-
-[2] Graph Representation Learning, William L. Hamilton, Morgan & Claypool, 2020
-
-[3] Twenty Lectures on Algorithmic Game Theory, Tim Roughgarden, 2016
+DeepWalk is a well-known milestone in graph representation learning capable of learning continuous embeddings of nodes in a graph through an online procedure yielding good reconstruction properties. DeepWalk and other shallow embeddings were subsumed by graph neural networks, capable of leveraging both nodes signals and network structure.
+A natural extension to the DeepWalk approach is trying to generalize it through graph cellular sheaves, a topological structure supporting heterogeneous higher dimensional data over a graph and allowing for a more expressive structuring of information. We merged DeepWalk algorithmic structure with the information encoded within the cellular sheaves in terms of the $\textit{agreement}$ of the adiacent 0-cochains on the shared edge stalk $||\mathcal{F}_{u \triangleleft e}X_u - \mathcal{F}_{v \triangleleft e}X_v||^2$, or the $\textit{similarity}$ between a set of cochains and its transported version $||X_u - \mathcal{F}_{u \triangleleft e}^T\mathcal{F}_{v \triangleleft e}X_v||^2$: these metrics allow to define an augmented sampling strategy over the neighborhood of a node when sampling random walks, resulting in a stateful online learning algorithm. 
