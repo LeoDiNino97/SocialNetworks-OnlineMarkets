@@ -1,91 +1,114 @@
-from torch_geometric.nn import GCNConv, GATConv, SAGEConv
-import torch.nn as nn
+from torch_geometric.nn import GCNConv, SAGEConv, GATConv
+from torch_geometric.utils import dropout_edge, to_dense_adj
+
 import torch
+import torch.nn as nn
+import torch.functional as F
 
 
-class GCNNet(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+class GCNNet(nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_features, out_channels):
         # Call the initializer of the parent class (torch.nn.Module)
         super().__init__()
 
         # Define the first GCN layer with in_channels and hidden_channels
         self.conv1 = GCNConv(in_channels, hidden_channels, normalize=True, bias=True)
 
-        # Define the second GCN layer with hidden_channels and out_channels
-        self.conv2 = GCNConv(hidden_channels, out_channels, normalize=True, bias = True)
+        # Define a skip connection layer
+        self.skip = nn.Linear(in_channels, hidden_channels)
 
+        # Define the second GCN layer with hidden_channels and out_channels
+        self.conv2 = GCNConv(hidden_channels, out_features, normalize=True, bias = True)
+
+        # Define a fully connected head
+        self.linear = nn.Linear(out_features, out_channels)
+        
         
     # Define the forward pass of the model
     def forward(self, x, edge_index):
+        x_ = torch.clone(x)
 
         # Pass the input through the first GCN layer and apply the ReLU activation function
-        x = self.conv1(x, edge_index).relu() 
+        edges, _ = dropout_edge(edge_index, p = 0.5)
+        x = self.conv1(x, edges)
+
+        #x += self.skip(x_)
+        x = x.relu() 
 
         # Pass the result through the second GCN layer
-        x = self.conv2(x, edge_index) 
+        edges, _ = dropout_edge(edge_index, p = 0.5)
+        x = self.conv2(x, edges).relu()
 
         # Return the final output
-        return x
+        return self.linear(x)
     
 class SAGENet(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_channels, hidden_channels, out_features, out_channels):
         # Call the initializer of the parent class (torch.nn.Module)
         super().__init__()
 
-        # Number of layers in the architecture
-        self.num_layers = len(hidden_channels)
+        # Define the first GCN layer with in_channels and hidden_channels
+        self.conv1 = SAGEConv(in_channels, hidden_channels, normalize=True, bias=True)
 
-        # Definition of the layers
-        self.layers = []
+        # Define a skip connection layer
+        self.skip = torch.nn.Linear(in_channels, hidden_channels)
 
-        for i in range(0,self.num_layers):
-            if i == 0:
-                self.layers.append(SAGEConv(in_channels,hidden_channels[i]))
-            elif i > 0 and i < self.num_layers:
-                self.layers.append(SAGEConv(hidden_channels[i-1],hidden_channels[i]))
-            
-        self.layers.append(SAGEConv(hidden_channels[self.num_layers-1], out_channels))
+        # Define the second GCN layer with hidden_channels and out_channels
+        self.conv2 = SAGEConv(hidden_channels, out_features, normalize=True, bias = True)
+
+        # Define a fully connected head
+        self.linear = torch.nn.Linear(out_features, out_channels)
         
-        # Torch wrapper for the layers list
-        self.layers = nn.ModuleList(self.layers)
         
     # Define the forward pass of the model
     def forward(self, x, edge_index):
+        x_ = torch.clone(x)
 
-        for i in range(0,self.num_layers-1):
-            x = self.layers[i](x, edge_index).relu()
+        # Pass the input through the first GCN layer and apply the ReLU activation function
+        x = self.conv1(x, edge_index)
+
+        x += self.skip(x_)
+        x = x.tanh() 
+
+        # Pass the result through the second GCN layer
+        edges, _ = dropout_edge(edge_index, p = 0.3)
+        x = self.conv2(x, edges).tanh()
 
         # Return the final output
-        return self.layers[self.num_layers - 1](x, edge_index)
+        return self.linear(x)
     
 class GATNet(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_channels, hidden_channels, out_features, out_channels):
         # Call the initializer of the parent class (torch.nn.Module)
         super().__init__()
 
-        # Number of layers in the architecture
-        self.num_layers = len(hidden_channels)
+        # Define the first GCN layer with in_channels and hidden_channels
+        self.conv1 = GATConv(in_channels, hidden_channels, bias=True)
 
-        # Definition of the layers
-        self.layers = []
+        # Define a skip connection layer
+        self.skip = torch.nn.Linear(in_channels, hidden_channels)
 
-        for i in range(0,self.num_layers):
-            if i == 0:
-                self.layers.append(GATConv(in_channels,hidden_channels[i]))
-            elif i > 0 and i < self.num_layers:
-                self.layers.append(GATConv(hidden_channels[i-1],hidden_channels[i]))
-            
-        self.layers.append(GATConv(hidden_channels[self.num_layers-1], out_channels))
+        # Define the second GCN layer with hidden_channels and out_channels
+        self.conv2 = GATConv(hidden_channels, out_features, bias = True)
+
+        # Define a fully connected head
+        self.linear = torch.nn.Linear(out_features, out_channels)
         
-        # Torch wrapper for the layers list
-        self.layers = nn.ModuleList(self.layers)
         
     # Define the forward pass of the model
     def forward(self, x, edge_index):
+        x_ = torch.clone(x)
 
-        for i in range(0,self.num_layers-1):
-            x = self.layers[i](x, edge_index).relu()
+        # Pass the input through the first GCN layer and apply the ReLU activation function
+        x = self.conv1(x, edge_index)
+
+        x += self.skip(x_)
+        x = x.tanh() 
+
+        # Pass the result through the second GCN layer
+        edges, _ = dropout_edge(edge_index, p = 0.3)
+        x = self.conv2(x, edges).tanh()
 
         # Return the final output
-        return self.layers[self.num_layers - 1](x, edge_index)
+        return self.linear(x)
     

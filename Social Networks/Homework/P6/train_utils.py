@@ -46,7 +46,7 @@ def test(model, data):
         accs.append(int((pred[mask] == data.y[mask]).sum()) / int(mask.sum()))
     return accs
 
-def training_loop(model, optimizer, data, epochs = 70, patience = 5):
+def training_loop(model, optimizer, data, epochs, patience = False):
     # Initialize variables to keep track of the best validation accuracy and test accuracy
     best_val_acc = 0
     test_acc = 0
@@ -62,25 +62,28 @@ def training_loop(model, optimizer, data, epochs = 70, patience = 5):
         val_accs.append(val_acc)
 
         # Update the best validation accuracy and corresponding test accuracy
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            test_acc = tmp_test_acc
-            best_epoch = epoch
+        if patience:
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                test_acc = tmp_test_acc
+                best_epoch = epoch
 
-            # Reset early stopping counter
-            early_stop_counter = 0  
+                # Reset early stopping counter
+                early_stop_counter = 0  
+            else:
+
+                # Increment early stopping counter if no improvement
+                early_stop_counter += 1  
+
+            # Log training progress
+            # log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Test=test_acc)
+
+            # Check for early stopping
+            if early_stop_counter >= patience:
+                print(f'Early stopping at epoch {epoch} with best validation accuracy: {best_val_acc:.4f}')
+                print(f'Test accuracy at epoch {best_epoch}: {test_acc:.4f}')
+                break
         else:
-
-            # Increment early stopping counter if no improvement
-            early_stop_counter += 1  
-
-        # Log training progress
-        #log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Test=test_acc)
-
-        # Check for early stopping
-        if early_stop_counter >= patience:
-            print(f'Early stopping at epoch {epoch} with best validation accuracy: {best_val_acc:.4f}')
-            print(f'Test accuracy at epoch {best_epoch}: {test_acc:.4f}')
-            break
+            test_acc = tmp_test_acc 
 
     return train_loss, val_accs, test_acc
