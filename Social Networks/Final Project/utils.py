@@ -117,6 +117,7 @@ class DeepWalk():
                  LR: float):
         
         self.graph = graph
+        self.nodes = np.array(self.graph.nodes)
 
         self.w = w
         self.d = d 
@@ -127,13 +128,13 @@ class DeepWalk():
         # Embedding initialization
         self.Phi = np.random.uniform(low=0, 
                                      high=1, 
-                                     size = (len(list(self.graph.nodes)), d))
+                                     size = (len(self.nodes), d))
 
         # Learning rate initialization
         self.LR = LR
 
         # SkipGram init
-        self.SkipGram = SkipGram(w, d, len(list(self.graph.nodes)), LR)
+        self.SkipGram = SkipGram(w, d, len(self.nodes), LR)
         
     def random_walk(self, v):
         walk = [v]
@@ -145,8 +146,9 @@ class DeepWalk():
 
         return walk
 
-    def main_loop(self):
+    def train(self):
         for _ in range(self.gamma):
-            for v in self.graph.nodes:
+            np.random.shuffle(self.nodes)
+            for v in self.nodes:
                 W = self.random_walk(v)
                 self.Phi = self.SkipGram.walk_step(W, self.Phi)
