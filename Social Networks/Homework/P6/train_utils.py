@@ -1,14 +1,5 @@
 import torch
 import torch.nn.functional as F
-import torch.nn as nn
-import matplotlib.pyplot as plt
-
-import torch_geometric.transforms as T
-from torch_geometric.datasets import Planetoid, TUDataset
-from torch_geometric.logging import init_wandb, log
-from torch_geometric.nn import GCNConv, TAGConv, SAGEConv
-from torch_geometric.loader import DataLoader
-from torch_geometric.utils import dropout_edge, to_dense_adj
 
 def train(model, optimizer, data):
     # Set the model to training mode
@@ -58,7 +49,7 @@ def training_loop(model, optimizer, data, epochs, patience = False):
         loss = train(model, optimizer, data)  # Train the model
         train_loss.append(loss)
 
-        train_acc, val_acc, tmp_test_acc = test(model, data)  # Test the model
+        _, val_acc, tmp_test_acc = test(model, data)  # Test the model
         val_accs.append(val_acc)
 
         # Update the best validation accuracy and corresponding test accuracy
