@@ -15,7 +15,7 @@ class Node:
 
         self.psi = np.random.rand(d)
 
-class HCBinaryTree():
+class BinaryTree():
     def __init__(self, 
                  V: int, 
                  d: int):
@@ -29,9 +29,9 @@ class HCBinaryTree():
     def insert(self, node):
         prev = self.root
         for i in node[:-1]:
-            if prev.children[i]: # Child Not Null
+            if prev.children[i]: 
                 prev = prev.children[i]
-            else:   # child[i] is Null
+            else:   
                 N = Node(self.d)
                 prev.children[i] = N
                 prev = N
