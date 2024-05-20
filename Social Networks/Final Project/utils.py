@@ -77,10 +77,10 @@ class SkipGram():
         psi_grads = []
         phi_grad = np.zeros_like(Phi[v_j,:])
 
-        for j in range(len(u_k)):
-            S = self.sigmoid(np.vdot(psi[j],Phi[v_j,:]))
-            psi_grads.append(- ( Phi[v_j,:] * (u_k[j] - S) ))
-            phi_grad -= psi[j] * (u_k[j] - 1) + Phi[v_j,:] * (1 - S)
+        for l in range(len(u_k)):
+            S = self.sigmoid(np.vdot(psi[l],Phi[v_j,:]))
+            psi_grads.append(- ( Phi[v_j,:] * (u_k[l] - S) ))
+            phi_grad -= psi[l] * (u_k[l] - 1) + Phi[v_j,:] * (1 - S)
 
         return walk, psi_grads, phi_grad
     
