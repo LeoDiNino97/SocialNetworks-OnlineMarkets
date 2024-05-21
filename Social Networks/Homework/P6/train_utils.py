@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch_geometric.utils import negative_sampling
 
 import numpy as np
-from sklearn.metrics import roc_auc_score, f1_score
+from sklearn.metrics import roc_auc_score
 
 # _______________________________NODE CLASSIFICATION TASK______________________________
 
@@ -27,6 +27,7 @@ def train(model, optimizer, data):
     return float(loss)
 
 # Define the testing function
+
 @torch.no_grad()  # Disable gradient computation for testing
 def node_classification_test(model, data):
 
@@ -44,7 +45,8 @@ def node_classification_test(model, data):
 
     return accs
 
-def node_classification_train_loop(model, optimizer, data, epochs, patience = False):
+def node_classification_train_loop(model, optimizer, data, epochs, patience = False, path = False):
+
     # Initialize variables to keep track of the best validation accuracy and test accuracy
     best_val_acc = 0
     train_loss = []
@@ -60,13 +62,16 @@ def node_classification_train_loop(model, optimizer, data, epochs, patience = Fa
 
         if epoch % 5 == 0:
             print(f'Epoch: {epoch:<5} | Training Loss: {loss:.4f} | Validation accuracy: {val_acc:.4f}')
+
         # Update the best validation accuracy and corresponding test accuracy
         if patience:
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
 
                 # Reset early stopping counter
-                early_stop_counter = 0  
+                early_stop_counter = 0 
+                if path:
+                    torch.save(model.state_dict(), path)
             else:
 
                 # Increment early stopping counter if no improvement
@@ -78,6 +83,8 @@ def node_classification_train_loop(model, optimizer, data, epochs, patience = Fa
             # Check for early stopping
             if early_stop_counter >= patience:
                 print(f'Early stopping at epoch {epoch} with best validation accuracy: {best_val_acc:.4f}')
+                print('Calling back best model...')
+                model.load_state_dict(torch.load(path))
 
                 break
 
@@ -131,10 +138,10 @@ def encoder_decoder_train_loop(epochs,
         # Edge predictions and their concatenation
 
         pos_preds = model.decode(node_embeddings[pos_edges_train[0]], 
-                                node_embeddings[pos_edges_train[1]])
+                                 node_embeddings[pos_edges_train[1]])
         
         neg_preds = model.decode(node_embeddings[neg_edges_train[0]], 
-                                node_embeddings[neg_edges_train[1]])
+                                 node_embeddings[neg_edges_train[1]])
         
         preds = torch.cat([pos_preds, neg_preds], dim=0)
 
@@ -151,10 +158,11 @@ def encoder_decoder_train_loop(epochs,
         # Compute loss and backpropagate
         
         loss = criterion(preds, labels)
-        train_loss.append(loss.detach().numpy())
         
         loss.backward()
         optimizer.step()
+
+        train_loss.append(loss.detach().numpy())
 
         # Set the model in evaluation mode
         model.eval()
@@ -195,14 +203,14 @@ def test_encoder_decoder(model,
     # Edge predictions and their concatenation
 
     pos_preds = model.decode(node_embeddings[pos_edges_test[0]], 
-                            node_embeddings[pos_edges_test[1]])
+                             node_embeddings[pos_edges_test[1]])
 
     neg_preds = model.decode(node_embeddings[neg_edges_test[0]], 
-                            node_embeddings[neg_edges_test[1]])
+                             node_embeddings[neg_edges_test[1]])
 
     test_preds = torch.cat([pos_preds, neg_preds], dim=0).detach().numpy()
 
     test_labels = torch.cat([torch.ones(pos_preds.size(0)), torch.zeros(neg_preds.size(0))], dim=0).detach().numpy()
     auc_score = roc_auc_score(test_labels, test_preds)
 
-    print(f' Test AUC-ROC Score: {auc_score:.4f}')
+    print(f'Test AUC-ROC Score: {auc_score:.4f}')

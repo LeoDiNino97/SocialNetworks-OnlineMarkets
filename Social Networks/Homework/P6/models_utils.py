@@ -8,7 +8,7 @@ import torch.nn.functional as F
 # ___________________________________________NODE CLASSIFICATION CLASSES____________________________________________________
 
 class GCNNet(nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_classes):
         super().__init__()
 
         # Define the first GCN layer with in_channels and hidden_channels
@@ -17,35 +17,37 @@ class GCNNet(nn.Module):
         # Define the second GCN layer with hidden_channels and out_channels
         self.conv2 = GCNConv(hidden_channels, out_channels)
 
-        
+        # Define a fully connected layer on top of the message passing
+        self.fc = nn.Linear(out_channels, num_classes)
+
     # Define the forward pass of the model
     def forward(self, x, edge_index):
         # Initialize the skip connection
         #x_ = torch.clone(x)
 
-        #x = F.dropout(x, p=0.6, training=self.training)
+        x = F.dropout(x, p=0.5, training=self.training)
 
         # Pass the input through the first GCN layer and apply the ReLU activation function
         #edges, _ = dropout_edge(edge_index, p = 0.3)
-        x = self.conv1(x, edge_index).relu() 
+        x = self.conv1(x, edge_index).tanh() 
 
         x = F.dropout(x, p=0.5, training=self.training)
 
         # Pass the result through the second GCN layer
         #edges, _ = dropout_edge(edge_index, p = 0.3)
         
-        x = self.conv2(x, edge_index)
+        x = self.conv2(x, edge_index).tanh()
 
         # Realize the skip connection 
         #x = torch.cat([x,x_], dim=1)
 
         # Fully connected layer
-        #x = self.fc(x)
+        x = self.fc(x)
 
         return F.log_softmax(x, dim=1)
     
 class SAGENet(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_classes):
         super().__init__()
 
         # Define the first GCN layer with in_channels and hidden_channels
@@ -54,36 +56,38 @@ class SAGENet(torch.nn.Module):
         # Define the second GCN layer with hidden_channels and out_channels
         self.conv2 = SAGEConv(hidden_channels, out_channels)
 
-        
+        # Define a fully connected layer on top of the message passing
+        self.fc = nn.Linear(out_channels, num_classes)
+
     # Define the forward pass of the model
     def forward(self, x, edge_index):
         # Initialize the skip connection
         #x_ = torch.clone(x)
 
-        #x = self.dropout(x)
+        x = F.dropout(x, p=0.5, training=self.training)
 
         # Pass the input through the first GCN layer and apply the ReLU activation function
         #edges, _ = dropout_edge(edge_index, p = 0.3)
-        x = self.conv1(x, edge_index).relu() 
+        x = self.conv1(x, edge_index).tanh() 
 
         x = F.dropout(x, p=0.5, training=self.training)
 
         # Pass the result through the second GCN layer
         #edges, _ = dropout_edge(edge_index, p = 0.3)
         
-        x = self.conv2(x, edge_index)
+        x = self.conv2(x, edge_index).tanh()
 
         # Realize the skip connection 
         #x = torch.cat([x,x_], dim=1)
 
         # Fully connected layer
-        #x = self.fc(x)
+        x = self.fc(x)
 
         return F.log_softmax(x, dim=1)
 
 
 class GATNet(torch.nn.Module):
-    def __init__(self, heads, in_channels, hidden_channels, out_channels):
+    def __init__(self, heads, in_channels, hidden_channels, out_channels, num_classes):
         super().__init__()
 
         # Define the first GCN layer with in_channels and hidden_channels
@@ -92,7 +96,9 @@ class GATNet(torch.nn.Module):
         # Define the second GCN layer with hidden_channels and out_channels
         self.conv2 = GATConv(hidden_channels * heads, out_channels, heads = 1)
         
-        
+        # Define a fully connected layer on top of the message passing
+        self.fc = nn.Linear(out_channels, num_classes)
+
     # Define the forward pass of the model
     def forward(self, x, edge_index):
         # Initialize the skip connection
@@ -102,22 +108,20 @@ class GATNet(torch.nn.Module):
 
         # Pass the input through the first GCN layer and apply the ReLU activation function
         #edges, _ = dropout_edge(edge_index, p = 0.3)
-        x = self.conv1(x, edge_index)
-
-        x = F.elu(x)
+        x = self.conv1(x, edge_index).tanh() 
 
         x = F.dropout(x, p=0.5, training=self.training)
 
         # Pass the result through the second GCN layer
         #edges, _ = dropout_edge(edge_index, p = 0.3)
         
-        x = self.conv2(x, edge_index)
+        x = self.conv2(x, edge_index).tanh()
 
         # Realize the skip connection 
         #x = torch.cat([x,x_], dim=1)
 
         # Fully connected layer
-        #x = self.fc(x)
+        x = self.fc(x)
 
         return F.log_softmax(x, dim=1)
 
