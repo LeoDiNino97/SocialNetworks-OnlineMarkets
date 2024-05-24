@@ -57,7 +57,8 @@ class SkipGram():
                  w: int,
                  d: int,
                  V: int,
-                 LR = 0.025):
+                 LR = 0.025,
+                 ):
         
         self.w = w
         self.d = d
@@ -70,7 +71,7 @@ class SkipGram():
     
     def grads(self, u_k, Phi, v_j):
 
-        walk, psi = self.tree.traversal(u_k)
+        path, psi = self.tree.traversal(u_k)
         u_k = bin(u_k).lstrip('0b').rjust(self.tree.H, '0')
         u_k = [float(u_k[i]) for i in range(len(u_k))]
 
@@ -78,33 +79,36 @@ class SkipGram():
         phi_grad = np.zeros_like(Phi[v_j,:])
 
         for l in range(len(u_k)):
-            S = self.sigmoid(np.vdot(psi[l],Phi[v_j,:]))
-            psi_grads.append(- ( Phi[v_j,:] * (u_k[l] - S) ))
-            phi_grad -= psi[l] * (u_k[l] - 1) + Phi[v_j,:] * (1 - S)
+            S = self.sigmoid(np.dot(psi[l],Phi[v_j,:]))
+            psi_grads.append( - ( Phi[v_j,:] * (u_k[l] - S) ) )
+            phi_grad -= psi[l] * (u_k[l] - S)
 
-        return walk, psi_grads, phi_grad
+        return path, psi_grads, phi_grad
     
     def step(self, u_k, Phi, v_j):
 
-        walk, psi_grads, phi_grad = self.grads(u_k, Phi, v_j)
-        for i in range(len(walk)):
-            walk[i].psi -= self.LR * psi_grads[i]
+        path, psi_grads, phi_grad = self.grads(u_k, Phi, v_j)
+
+        for i in range(len(path)):
+            path[i].psi -= self.LR * psi_grads[i]
+
         Phi[v_j,:] -= self.LR * phi_grad
 
+        #self.LR -= self.LR_schedule
         return Phi
     
-    def window_step(self, W, Phi, v_j):
+    def window_step(self, W, Phi, v_j, j):
 
-        for node in W[v_j - self.w : v_j + self.w]:
+        for node in W[j - self.w : j + self.w]:
             Phi = self.step(node, Phi, v_j)
 
         return Phi
     
     def walk_step(self, W, Phi):
 
-        for node in W:
-            Phi = self.window_step(W, Phi, node)
-
+        for j in range(len(W)):
+            v_j = W[j]
+            Phi = self.window_step(W, Phi, v_j, j)
         return Phi
 
 class DeepWalk():
@@ -114,7 +118,8 @@ class DeepWalk():
                  d: int,
                  gamma: int,
                  t: int,
-                 LR: float):
+                 LR: float,
+                 ):
         
         self.graph = graph
         self.nodes = np.array(self.graph.nodes)
@@ -149,6 +154,7 @@ class DeepWalk():
     def train(self):
         for _ in range(self.gamma):
             np.random.shuffle(self.nodes)
+
             for v in self.nodes:
                 W = self.random_walk(v)
                 self.Phi = self.SkipGram.walk_step(W, self.Phi)
