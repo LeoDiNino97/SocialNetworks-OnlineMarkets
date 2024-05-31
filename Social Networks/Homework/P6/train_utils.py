@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch_geometric.utils import negative_sampling
 
 import numpy as np
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
 # _______________________________NODE CLASSIFICATION TASK______________________________
 
@@ -29,21 +29,39 @@ def train(model, optimizer, data):
 # Define the testing function
 
 @torch.no_grad()  # Disable gradient computation for testing
+def validation_accuracy(model, data):
+
+    # Set the model to evaluation mode
+    model.eval() 
+
+    # Get predictions
+    preds = model(data.x, data.edge_index).argmax(dim=-1)
+
+    # Calculate accuracy for , validation, and test sets
+    return accuracy_score(preds[data.val_mask], data.y[data.val_mask])
+
+@torch.no_grad() 
 def node_classification_test(model, data):
 
     # Set the model to evaluation mode
     model.eval() 
 
     # Get predictions
-    pred = model(data.x, data.edge_index).argmax(dim=-1)
+    preds = model(data.x, data.edge_index).argmax(dim=-1)
 
-    accs = []
+    metrics = {
+        'Accuracy':None,
+        'Precision':None,
+        'F1 Score':None,
+        'Recall':None
+    }
     
-    # Calculate accuracy for training, validation, and test sets
-    for mask in [data.train_mask, data.val_mask, data.test_mask]:
-        accs.append(int((pred[mask] == data.y[mask]).sum()) / int(mask.sum()))
+    metrics['Accuracy'] = accuracy_score(preds[data.test_mask], data.y[data.test_mask])
+    metrics['Precision'] = precision_score(preds[data.test_mask], data.y[data.test_mask], average='macro')
+    metrics['F1 Score'] = f1_score(preds[data.test_mask], data.y[data.test_mask], average='macro')
+    metrics['Recall'] = recall_score(preds[data.test_mask], data.y[data.test_mask], average='macro')
 
-    return accs
+    return metrics
 
 def node_classification_train_loop(model, optimizer, data, epochs, patience = False, path = False):
 
@@ -57,7 +75,7 @@ def node_classification_train_loop(model, optimizer, data, epochs, patience = Fa
         loss = train(model, optimizer, data)  # Train the model
         train_loss.append(loss)
 
-        _, val_acc, _ = node_classification_test(model, data)  # Test the model
+        val_acc = validation_accuracy(model, data) # Retrieve validation accuracy
         val_accs.append(val_acc)
 
         if epoch % 5 == 0:
