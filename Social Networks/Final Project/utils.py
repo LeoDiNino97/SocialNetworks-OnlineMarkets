@@ -157,28 +157,11 @@ class DeepWalk():
         # Biased sampling attribute
         self.biased = biased
         
-    def agreement(self, u, v):
-
-        X_u = self.nodes_signals[u*self.stalk_dim:(u+1)*self.stalk_dim,:]
-        X_v = self.nodes_signals[v*self.stalk_dim:(v+1)*self.stalk_dim,:]
-
-        F_u = self.restriction_maps[u]
-        F_v = self.restriction_maps[v]
-
-        return np.linalg.norm(F_u @ X_u - F_v @ X_v, ord = 'fro')
-
     def biased_sampling(self, node):
         
         neighbors = np.array([node for node in self.graph.neighbors(node)])
-        probs = np.zeros_like(neighbors)
-        for i, neighbor in enumerate(neighbors): 
-
-            probs[i] = self.agreement(node, neighbor)
-
-        probs = probs / np.sum(probs)
-            
+        probs = self.Sheaf.similarity_matrix[:,node]
         return np.random.choice(neighbors, p = probs)
-
 
     def random_walk(self, v):
         walk = [v]
@@ -227,6 +210,7 @@ class GraphSheaf():
 
         self.mu = mu
         self.sheaf_builder()
+        self.similarity_matrix = self.similarity()
 
     def sheaf_builder(self):
 
@@ -268,5 +252,26 @@ class GraphSheaf():
     def chi_v(self, uu, uv, vv, vu):
 
         return (uu @ uv - np.eye(uu.shape[0])) @ vv @ np.linalg.inv(vu @ uu @ uv @ vv - np.eye(uu.shape[0]))
+    
+    def agreement(self, u, v):
+
+        X_u = self.node_signals[u*self.stalk_dim:(u+1)*self.stalk_dim,:]
+        X_v = self.node_signals[v*self.stalk_dim:(v+1)*self.stalk_dim,:]
+
+        F_u = self.maps[u]
+        F_v = self.maps[v]
+
+        return np.linalg.norm(F_u @ X_u - F_v @ X_v, ord = 'fro')
+    
+    def similarity(self):
+        similarity_matrix = np.zeros((self.nodes.shape[0],self.nodes.shape[0]))
+
+        for i in range(self.nodes.shape[0]):
+            for j in range(i, self.nodes.shape[0]):
+                similarity_matrix[i,j] = self.agreement(self.nodes[i],self.nodes[j])
+                similarity_matrix[j,i] = self.agreement(self.nodes[i],self.nodes[j])
+        
+        # Column stochastic matrix
+        return similarity_matrix / np.sum(similarity_matrix, axis = 0)
         
 
