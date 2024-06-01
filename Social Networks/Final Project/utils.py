@@ -189,13 +189,20 @@ class DeepWalk():
 class GraphSheaf():
     def __init__(self, 
                  G: nx.Graph, 
+                 nodes: np.array,
+                 edges: np.array,
                  D: int,
                  node_signals: np.array,
                  mu: float):
         
-        self.G = G
-        self.nodes = np.array(list(G.nodes))
-        self.edges = np.array(G.edges)
+        if G:
+        
+            self.G = G
+            self.nodes = np.array(list(G.nodes))
+            self.edges = list(G.edges)
+        else:
+            self.nodes = nodes
+            self.edges = edges
 
         self.D = D
         
@@ -205,7 +212,7 @@ class GraphSheaf():
             tuple(self.edges[i]):
                 {self.edges[i,0]: None,
                  self.edges[i,1]: None}
-            for i in range(self.edges.shape[0])
+            for i in range(len(self.edges))
         }
 
         self.mu = mu
@@ -214,7 +221,7 @@ class GraphSheaf():
 
     def sheaf_builder(self):
 
-        for i, _ in range(self.edges.shape[0]):
+        for i, _ in range(self.edges):
             e = self.edges[i]
 
             u = e[0]
@@ -233,7 +240,7 @@ class GraphSheaf():
             tuple(self.edges[i]):
                 {self.edges[i,0]: self.mu/T * self.maps[self.edges[i]][self.edges[i,0]],
                  self.edges[i,1]: self.mu/T * self.maps[self.edges[i]][self.edges[i,1]]}
-            for i in range(self.edges.shape[0])
+            for i in range(len(self.edges))
         }
 
 
