@@ -139,7 +139,6 @@ class DeepWalk():
         self.nodes_signals = nodes_signals
         self.stalk_dim = stalk_dim  
 
-        self.w = w
         self.d = d 
 
         self.gamma = gamma
@@ -154,7 +153,10 @@ class DeepWalk():
         self.LR = LR
 
         # SkipGram initialization
-        self.SkipGram = SkipGram(w, d, len(self.nodes), LR)
+        self.SkipGram = SkipGram(w, 
+                                 d, 
+                                 len(self.nodes), 
+                                 LR)
 
         # Sheaf initialization
         if self.nodes_signals is not None:
@@ -254,7 +256,6 @@ class GraphSheaf():
             self.premultipliers[(u,v)][(v,u)] = vu
 
         # Apply the process_edge function to each row in the edges array
-
         np.apply_along_axis(process_edge, 0, self.edges)
 
             
@@ -305,9 +306,11 @@ class GraphSheaf():
         if (u,v) in self.edges_:
             F_u = self.maps[(u,v)][u]
             F_v = self.maps[(u,v)][v]
+
         elif (v,u) in self.edges_:
             F_u = self.maps[(v,u)][u]
             F_v = self.maps[(v,u)][v]
+            
         else:
             return np.inf
 
@@ -318,8 +321,8 @@ class GraphSheaf():
 
         for i in range(self.nodes.shape[0]):
             for j in range(i, self.nodes.shape[0]):
-                similarity_matrix[i,j] = 1/self.agreement(self.nodes[i],self.nodes[j])
-                similarity_matrix[j,i] = 1/self.agreement(self.nodes[i],self.nodes[j])
+                similarity_matrix[i,j] = np.exp(-self.agreement(self.nodes[i],self.nodes[j]))
+                similarity_matrix[j,i] = np.exp(-self.agreement(self.nodes[i],self.nodes[j]))
         
         # Column stochastic matrix
         return similarity_matrix / np.sum(similarity_matrix, axis = 0)
