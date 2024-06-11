@@ -61,12 +61,14 @@ class SkipGram():
                  d: int,
                  V: int,
                  LR = 0.025,
+                 LR_scheduler = 1e-6
                  ):
         
         self.w = w
         self.d = d
         self.V = V
         self.LR = LR
+        self.LR_scheduler = LR_scheduler
         self.tree = BinaryTree(self.V, self.d)
 
     def sigmoid(self, x):
@@ -97,7 +99,8 @@ class SkipGram():
 
         Phi[v_j,:] -= self.LR * phi_grad
 
-        #self.LR -= self.LR_schedule
+        if self.LR > 1e-5:
+            self.LR -= self.LR_scheduler
         return Phi
     
     def window_step(self, W, Phi, v_j, j):
@@ -112,29 +115,55 @@ class SkipGram():
         for j in range(len(W)):
             v_j = W[j]
             Phi = self.window_step(W, Phi, v_j, j)
+
         return Phi
 
 class DeepWalk():
     def __init__(self, 
-                 graph: nx.Graph,
+                 graph,
                  w: int,
                  d: int,
                  gamma: int,
                  t: int,
                  LR: float,
+                 LR_scheduler: float,
                  biased: bool,
                  nodes_signals: np.array,
                  stalk_dim: int, 
                  mu: float
                  ):
         
-        self.graph = graph
-        self.nodes = np.array(self.graph.nodes)
+        if type(graph) == nx.Graph:
+            self.graph['nodes'] = graph
+            self.nodes = np.array(self.graph.nodes)
 
-        self.edges = np.zeros((2, len(self.graph.edges)), dtype='int32')
-        for i, edge in enumerate(list(self.graph.edges)):
-            self.edges[0,i] = edge[0]
-            self.edges[1,i] = edge[1]
+            self.edges = np.zeros((2, len(self.graph.edges)), dtype='int32')
+            for i, edge in enumerate(list(self.graph.edges)):
+                self.edges[0,i] = edge[0]
+                self.edges[1,i] = edge[1]
+
+        elif type(graph) == dict:
+            self.graph = graph
+            self.nodes = np.array(self.graph['nodes'])
+
+            self.graph['neighbors'] = {
+                node: []
+                for node in self.graph['nodes']
+            }
+
+            for edge in self.graph['edges']:
+                self.graph['neighbors'][edge[0]].append(edge[1])
+                self.graph['neighbors'][edge[1]].append(edge[0])
+
+            self.edges = np.zeros((2, len(self.graph['edges'])), dtype='int32')
+            for i, edge in enumerate(list(self.graph['edges'])):
+                self.edges[0,i] = edge[0]
+                self.edges[1,i] = edge[1]            
+            
+        
+        else:
+            raise('Unsupported data structure for underlying graph, please provide it as a nx.Graph or a dict containing nodes and edges list. ')
+
 
         self.nodes_signals = nodes_signals
         self.stalk_dim = stalk_dim  
@@ -151,12 +180,14 @@ class DeepWalk():
 
         # Learning rate initialization
         self.LR = LR
+        self.LR_scheduler = LR_scheduler
 
         # SkipGram initialization
         self.SkipGram = SkipGram(w, 
                                  d, 
                                  len(self.nodes), 
-                                 LR)
+                                 LR,
+                                 LR_scheduler)
 
         # Sheaf initialization
         if self.nodes_signals is not None:
@@ -179,7 +210,10 @@ class DeepWalk():
         curr = v
         for _ in range(self.t):
             if not self.biased:
-                w = np.random.choice(np.array([node for node in self.graph.neighbors(curr)]))
+                if type(self.graph) == nx.Graph:
+                    w = np.random.choice(np.array([node for node in self.graph.neighbors(curr)]))
+                else:
+                    w = np.random.choice(np.array([node for node in self.graph['neighbors'][curr]]))
                 walk.append(w)
                 curr = w
             else:
@@ -190,7 +224,7 @@ class DeepWalk():
         return walk
 
     def train(self):
-        for _ in range(self.gamma):
+        for _ in tqdm(range(self.gamma)):
             np.random.shuffle(self.nodes)
 
             for v in self.nodes:
@@ -310,7 +344,7 @@ class GraphSheaf():
         elif (v,u) in self.edges_:
             F_u = self.maps[(v,u)][u]
             F_v = self.maps[(v,u)][v]
-            
+
         else:
             return np.inf
 
@@ -321,125 +355,9 @@ class GraphSheaf():
 
         for i in range(self.nodes.shape[0]):
             for j in range(i, self.nodes.shape[0]):
-                similarity_matrix[i,j] = np.exp(-self.agreement(self.nodes[i],self.nodes[j]))
-                similarity_matrix[j,i] = np.exp(-self.agreement(self.nodes[i],self.nodes[j]))
+                if (i,j) or (j,i) in self.edges_:
+                    similarity_matrix[i,j] = np.exp(-self.agreement(self.nodes[i],self.nodes[j]))
+                    similarity_matrix[j,i] = np.exp(-self.agreement(self.nodes[i],self.nodes[j]))
         
         # Column stochastic matrix
         return similarity_matrix / np.sum(similarity_matrix, axis = 0)
-        
-
-#__________________________________________________________________________________________________
-# Synthetic data generation utils
-
-def random_ER_graph(
-        V:int
-        ) -> list:
-    
-    '''
-    Generate random Erdos-Renyi graph of a given number of nodes with probability slighlty higher than the connection threshold 
-
-    Parameters:
-    - V (int): The number of nodes.
-
-    Returns:
-    - list: collection of edges  
-    '''
-
-    edges = []
-
-    for u in range(V):
-        for v in range(u+1, V):
-            p = np.random.uniform(0,1,1)
-            if p < 1.3*np.log(V)/V:
-                edges.append((u,v))
-
-    return edges
-
-def random_sheaf(
-        V:int,
-        d:int,
-        edges:list
-        ) -> np.array:
-    
-    '''
-    Generate random sheaf laplacian whose restriction maps are randomly sampled from a gaussian distribution 
-
-    Parameters:
-    - V (int): The number of nodes.
-    - d (int): Stalks dimension
-    - edges (list): list of the edges of the underlying graph
-
-    Returns:
-    - np.array: sheaf laplacian
-    '''
-
-    E = len(edges)
-
-    # Incidency linear maps
-
-    F = {
-        e:{
-            e[0]:np.random.randn(d,d),
-            e[1]:np.random.randn(d,d)
-            } 
-            for e in edges
-        }                                           
-
-    # Coboundary maps
-
-    B = np.zeros((d*E, d*V))                        
-
-    for i in range(len(edges)):
-
-        # Main loop to populate the coboundary map
-
-        edge = edges[i]
-
-        u = edge[0] 
-        v = edge[1] 
-
-        B_u = F[edge][u]
-        B_v = F[edge][v]
-
-        B[i*d:(i+1)*d, u*d:(u+1)*d] = B_u           
-        B[i*d:(i+1)*d, v*d:(v+1)*d] = - B_v
-
-    L_f = B.T @ B
-
-    return L_f
-
-def synthetic_data(
-        N:int, 
-        d:int,
-        V:int,
-        L:np.array
-        ) -> np.array:
-    '''
-    Generate synthetic smooth signals based on a given sheaf laplacian.
-
-    Parameters:
-    - N (int): The number of signals to generate.
-    - d (int): The stalk dimension.
-    - V (int): The number of nodes.
-    - L (np.array): A numpy array representing the sheaf laplacian.
-
-    Returns:
-    - np.array: A numpy array of shape (V*d, N) containing the synthetic data.    
-    '''
-
-    # Generate random signals over the stalks of the vertices
-    X = np.random.randn(V*d,N)
-
-    # Retrieve the eigendecomposition of the sheaf laplacian
-    Lambda, U = np.linalg.eig(L)
-
-    # Tikhonov regularization based approach
-    H = 1/(1 + 10*Lambda)
-
-    # Propect into vertices domain <- filter out <- project into spectrum of laplacian
-    Y = U @ np.diag(H) @ U.T @ X
-
-    # Add gaussian noise
-    Y += np.random.normal(0, 10e-2, size=Y.shape)
-
-    return Y
