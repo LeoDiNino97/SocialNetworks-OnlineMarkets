@@ -134,7 +134,7 @@ class DeepWalk():
                  ):
         
         if type(graph) == nx.Graph:
-            self.graph['nodes'] = graph
+            self.graph = graph
             self.nodes = np.array(self.graph.nodes)
 
             self.edges = np.zeros((2, len(self.graph.edges)), dtype='int32')
@@ -217,7 +217,7 @@ class DeepWalk():
                 walk.append(w)
                 curr = w
             else:
-                w = self.biased_sampling(v)
+                w = self.biased_sampling(curr)
                 walk.append(w)
                 curr = w
 
@@ -356,8 +356,8 @@ class GraphSheaf():
         for i in range(self.nodes.shape[0]):
             for j in range(i, self.nodes.shape[0]):
                 if (i,j) or (j,i) in self.edges_:
-                    similarity_matrix[i,j] = np.exp(-self.agreement(self.nodes[i],self.nodes[j]))
-                    similarity_matrix[j,i] = np.exp(-self.agreement(self.nodes[i],self.nodes[j]))
+                    similarity_matrix[i,j] = np.exp(-self.agreement(self.nodes[i],self.nodes[j])/0.01)
+                    similarity_matrix[j,i] = np.exp(-self.agreement(self.nodes[i],self.nodes[j])/0.01)
         
         # Column stochastic matrix
         return similarity_matrix / np.sum(similarity_matrix, axis = 0)
